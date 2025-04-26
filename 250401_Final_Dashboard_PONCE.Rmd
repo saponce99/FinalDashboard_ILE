@@ -34,8 +34,10 @@ LPA <- readRDS("lpa_geo.rds")
 **Time Period:** Data reflect responses from BRFSS 2021 and 2022, released in 2024
 
 # Real-World Impact {data-navmenu="Real-World Impact"}
-**Real-World Impact:**
-This dashboard provides an accessible way to explore disparities in obesity and physical inactivity across U.S. counties, helping public health professionals identify high-need areas. The visualization of geographic patterns supports data-driven decision-making for targeted physical activity and obesity-focused interventions.
+
+**Real-World Impact:** This dashboard provides an accessible way to explore disparities in obesity and physical inactivity across U.S. counties, helping public health professionals identify high-need areas. The visualization of geographic patterns supports data-driven decision-making for targeted physical activity and obesity-focused interventions.
+
+[Github Repository](https://github.com/saponce99/FinalDashboard_ILE)
 
 # Visualizations {data-navmenu="Visualizations"}
 
@@ -144,8 +146,7 @@ theme(
 shinyApp(ui = ui, server = server)
 ```
 
-## Column {data-height="600"}
------------------------------------------------------------------------
+## \## Column {data-height="600"}
 
 ### Obesity and No Leisure Physical Activity Prevalence Heat Maps
 
@@ -318,9 +319,3 @@ shinyApp(ui = ui_map, server = server_map)
 
 ```
 
-
-```{r}
-rsconnect::setAccountInfo(name='stephanie-a-ponce',
-			  token='5EC29BE421999A79014DB3305315AD89',
-			  secret='22ZDfpvDvhDzqsKpIxTPUXS3unsxPU5vMLIXeu9o')
-```

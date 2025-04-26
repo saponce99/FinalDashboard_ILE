@@ -1,0 +1,326 @@
+---
+title: "Final Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+
+library(flexdashboard)
+library(shiny)
+library(leaflet)
+library(sf)
+library(readr)
+library(dplyr)
+library(tidyverse)
+library(plotly)
+
+#read pre-saved spatial RDS files
+Obesity<- readRDS("obesity_geo.rds")
+LPA <- readRDS("lpa_geo.rds")
+
+```
+
+# About the Data {data-navmenu="About"}
+
+### About the Data
+
+**Data Source:** [CDC PLACES Data Portal](https://data.cdc.gov/500-Cities-Places/PLACES-Local-Data-for-Better-Health-County-Data-20/swc5-untb/about_data)\
+**Data Collection Method:** Estimates derived from the 2022 Behavioral Risk Factor Surveillance System (BRFSS), U.S. Census 2020 data, and 2018–2022 ACS using small area estimation techniques\
+**Study Population:** U.S. adults across the 500 largest cities/counties\
+**Time Period:** Data reflect responses from BRFSS 2021 and 2022, released in 2024
+
+# Real-World Impact {data-navmenu="Real-World Impact"}
+**Real-World Impact:**
+This dashboard provides an accessible way to explore disparities in obesity and physical inactivity across U.S. counties, helping public health professionals identify high-need areas. The visualization of geographic patterns supports data-driven decision-making for targeted physical activity and obesity-focused interventions.
+
+# Visualizations {data-navmenu="Visualizations"}
+
+## Column {data-height="1000"}
+
+### Obesity Prevalence Forest Plot
+
+**Description:** This forest plot displays the **age-adjusted obesity prevalence** or **age-adjusted prevalence of no leisure physical activity** for counties in Georgia depending on your selection.\
+- **Each dot** represents the estimated prevalence for a county.\
+- **Horizontal lines** indicate confidence intervals, which show the range of possible values with statistical certainty.\
+- Use the dropdown menu to select **counties** and compare.
+
+**Key Takeaway:** The default forest plot shows the 10 counties with the highest age-adjusted prevalence of obesity in Georgia.
+
+```{r, forest plot}
+#ui component
+ui <- fluidPage(
+  titlePanel("Obesity and No Leisure Physical Activity Prevalence Across Georgia Counties"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("selected_counties", "Select Georgia Counties:", 
+                  choices = unique(Obesity %>% filter(statedesc == "Georgia") %>% pull(locationname)), 
+                  selected = NULL, multiple = TRUE),
+      
+      radioButtons("prevalence_type", "Choose Prevalence Type:",
+                   choices = c("Obesity", "No Leisure Physical Activity"),
+                   selected = "Obesity")
+    ),
+    
+mainPanel(
+      plotlyOutput("obesity_plot", height = "700px")
+  )
+ )
+)
+
+
+#server component
+server <- function(input, output, session) {
+  
+  output$obesity_plot <- renderPlotly({
+    req(input$prevalence_type)
+    
+    df <- if (input$prevalence_type == "Obesity") {
+      Obesity
+    } else {
+      LPA
+    }
+    
+    df <- df %>% filter(statedesc == "Georgia")
+    
+    state_avg <- df %>%
+      summarise(mean_val = mean(data_value, na.rm = TRUE),
+                lower_ci = mean(low_confidence_limit, na.rm = TRUE),
+                upper_ci = mean(high_confidence_limit, na.rm = TRUE))
+    
+if (!is.null(input$selected_counties) && length(input$selected_counties) > 0) {
+  county_data <- df %>% filter(locationname %in% input$selected_counties)
+} else {
+  county_data <- df %>%
+    arrange(desc(data_value)) %>%
+    slice_head(n = 10)
+}
+
+    county_data <- county_data %>% arrange(desc(data_value))
+    plot_height <- max(500, nrow(county_data))
+    ga_label <- paste("GA Average (", round(state_avg$mean_val, 1), "%)", sep = "")
+    avg_line_data <- data.frame(x = state_avg$mean_val, label = ga_label)
+
+
+# Forest Plot    
+    p <- ggplot(county_data, aes(y = reorder(locationname, data_value), x = data_value)) +
+      geom_point(aes(
+        text = paste0(
+          "County: ", locationname, "<br>",
+          "Population: ", totalpopulation, "<br>",
+          "Year: ", year, "<br>",
+          input$prevalence_type, " Prevalence: ", round(data_value, 1), "%"
+        )
+      ), color = "#1f78b4", size = 1.5) +
+      geom_errorbar(aes(xmin = low_confidence_limit, xmax = high_confidence_limit),
+                    width = 0.2, color = "gray40") +
+      geom_vline(data = avg_line_data,
+           aes(xintercept = x, linetype = label, color = label),
+           size = 0.8) +
+scale_color_manual(name = NULL, values = setNames("red", ga_label)) +
+scale_linetype_manual(name = NULL, values = setNames("dashed", ga_label)) +
+      scale_x_continuous(limits = c(0, 100), labels = scales::percent_format(scale = 1)) +
+      labs(title = paste(input$prevalence_type, "Prevalence\nin Selected Georgia Counties"),
+           x = paste(input$prevalence_type, "Prevalence (%)"), y = "County") +
+      theme_minimal() +
+theme(
+  plot.margin = margin(t = 30, r = 20, b = 20, l = 20),  # Add more top margin here
+  axis.text.y = element_text(size = 8, hjust = 0),
+  axis.title.y = element_text(margin = margin(r = 80))
+)
+    
+    ggplotly(p, tooltip = "text") %>%
+      layout(
+        yaxis = list(automargin = TRUE, tickangle = 0),
+        height = plot_height
+      )
+  })
+}
+
+shinyApp(ui = ui, server = server)
+```
+
+## Column {data-height="600"}
+-----------------------------------------------------------------------
+
+### Obesity and No Leisure Physical Activity Prevalence Heat Maps
+
+**Description:** These interactive maps visualize county-level data for **obesity prevalence** and **prevalence of no leisure physical activity** in the state of Georgia.\
+- Select a **county** from the dropdown to zoom into the county.\
+- Use the **slider** to adjust the range of displayed prevalence values.\
+- Click a county for more details.
+
+**Key Takeaway:** The default heat maps show the prevalence of obesity and no leisure physical activity across the state of Georgia. It is evident that Macon and Randolph counties have a high prevalence of both **obesity** and **no leisure physical activity**.
+
+```{r}
+
+#ui component
+
+ui_map <- fluidPage(
+  titlePanel("Obesity and No Leisure Physical Activity Heat Maps"),
+  
+  fluidRow(
+    column(6,
+           wellPanel(
+             selectInput("selected_map_county", "Choose a County in Georgia:", 
+                         choices = c("All Counties", unique(Obesity %>% filter(statedesc == "Georgia") %>% pull(locationname))), 
+                         selected = "All Counties"),
+             sliderInput("prevalence_range", "Filter by Age-Adjusted Obesity Prevalence (%):",
+                         min = 10, max = 53, value = c(10, 53), step = 1)
+           ),
+           leafletOutput("obesity_map", height = "800px")
+    ),
+    
+    column(6,
+           wellPanel(
+             selectInput("selected_LPA_county", "Choose a County in Georgia:", 
+                         choices = c("All Counties", unique(LPA %>% filter(statedesc == "Georgia") %>% pull(locationname))), 
+                         selected = "All Counties"),
+             sliderInput("prevalence_range_LPA", "Filter by Age-Adjusted Prevalence of No Leisure Physical Activity (%):",
+                         min = 10, max = 50, value = c(10, 50), step = 1)
+           ),
+           leafletOutput("LPA_map", height = "800px")
+    )
+  )
+)
+
+#server component
+
+server_map <- function(input, output, session) {
+  
+#Center of Georgia
+get_georgia_center <- function(dataset) {
+  state_data <- dataset %>% filter(statedesc == "Georgia")
+  state_bbox <- st_bbox(state_data$geometry)
+  lng_center <- mean(c(state_bbox["xmin"], state_bbox["xmax"]))
+  lat_center <- mean(c(state_bbox["ymin"], state_bbox["ymax"]))
+  return(list(lng = lng_center, lat = lat_center))
+}
+  
+# **Obesity Map**
+output$obesity_map <- renderLeaflet({
+  # Filter only Georgia data
+  map_data <- Obesity %>% filter(statedesc == "Georgia") %>%
+    filter(data_value >= input$prevalence_range[1], 
+           data_value <= input$prevalence_range[2])
+  
+  # Determine map center and zoom
+  if (!is.null(input$selected_map_county) &&
+      input$selected_map_county != "" &&
+      input$selected_map_county != "All Counties") {
+    
+    selected_data <- map_data %>% filter(locationname == input$selected_map_county)
+    if (nrow(selected_data) == 0) return(NULL)
+    
+    selected_geom <- selected_data$geometry[[1]]
+    centroid <- st_centroid(selected_geom)
+    lng_center <- st_coordinates(centroid)[1]
+    lat_center <- st_coordinates(centroid)[2]
+    zoom_level <- 9
+    
+    # Show only selected county
+    map_data <- selected_data
+    
+  } else {
+    georgia_center <- get_georgia_center(Obesity)
+    lng_center <- georgia_center$lng
+    lat_center <- georgia_center$lat
+    zoom_level <- 7
+  }
+  
+  if (nrow(map_data) == 0) return(NULL)
+  
+  pal <- colorNumeric(palette = "YlOrRd", domain = map_data$data_value)
+  
+  leaflet(map_data) %>%
+    addProviderTiles(providers$CartoDB.Positron) %>%
+    addPolygons(
+      fillColor = ~pal(data_value),
+      color = "black", weight = 0.5, opacity = 0.8,
+      fillOpacity = 0.7,
+      label = ~paste0(locationname, ": ", round(data_value, 1), "%"),
+            popup = ~paste0("<b>State: </b>", statedesc,
+                      "<br><b>County: </b>", locationname, 
+                      "<br><b>Obesity Prevalence: </b>", round(data_value, 1), "%", 
+                      "<br><b>95% CI: </b>[", low_confidence_limit, ", ", high_confidence_limit, "]")
+    ) %>%
+    addLegend(pal = pal, values = map_data$data_value, 
+              title = "Obesity Prevalence (%)", position = "bottomright") %>%
+    setView(lng = lng_center, lat = lat_center, zoom = zoom_level)
+})
+
+  
+# **No Leisure Physical Activity Map**
+output$LPA_map <- renderLeaflet({
+  # Filter only Georgia data
+  map_data <- LPA %>% filter(statedesc == "Georgia")
+  
+  # Prevalence range filter
+  map_data <- map_data %>%
+    filter(data_value >= input$prevalence_range_LPA[1], 
+           data_value <= input$prevalence_range_LPA[2])
+  
+  # Map center and zoom
+  if (!is.null(input$selected_LPA_county) &&
+      input$selected_LPA_county != "" &&
+      input$selected_LPA_county != "All Counties") {
+    
+    # Zoom selected county
+    selected_data <- map_data %>% filter(locationname == input$selected_LPA_county)
+    if (nrow(selected_data) == 0) return(NULL)
+    
+    selected_geom <- selected_data$geometry[[1]]
+    centroid <- st_centroid(selected_geom)
+    lng_center <- st_coordinates(centroid)[1]
+    lat_center <- st_coordinates(centroid)[2]
+    zoom_level <- 9
+    
+    # Just the selected county
+    map_data <- selected_data
+    
+  } else {
+    # Default: full Georgia view
+    georgia_center <- get_georgia_center(LPA)
+    lng_center <- georgia_center$lng
+    lat_center <- georgia_center$lat
+    zoom_level <- 7
+  }
+  
+  if (nrow(map_data) == 0) return(NULL)
+  
+  # Color palette
+  pal <- colorNumeric(palette = "Blues", domain = map_data$data_value)
+  
+  # Render map
+  leaflet(map_data) %>%
+    addProviderTiles(providers$CartoDB.Positron) %>%
+    addPolygons(
+      fillColor = ~pal(data_value),
+      color = "black", weight = 0.5, opacity = 0.8,
+      fillOpacity = 0.7,
+      label = ~paste0(locationname, ": ", round(data_value, 1), "%"),
+      popup = ~paste0("<b>State: </b>", statedesc,
+                      "<br><b>County: </b>", locationname, 
+                      "<br><b>No Leisure Physical Activity: </b>", round(data_value, 1), "%",
+                      "<br><b>95% CI: </b>[", low_confidence_limit, ", ", high_confidence_limit, "]")
+    ) %>%
+    addLegend(pal = pal, values = map_data$data_value, 
+              title = "No Leisure Physical Activity (%)", position = "bottomright") %>%
+    setView(lng = lng_center, lat = lat_center, zoom = zoom_level)
+})
+}
+
+shinyApp(ui = ui_map, server = server_map)
+
+```
+
+
+```{r}
+rsconnect::setAccountInfo(name='stephanie-a-ponce',
+			  token='5EC29BE421999A79014DB3305315AD89',
+			  secret='22ZDfpvDvhDzqsKpIxTPUXS3unsxPU5vMLIXeu9o')
+```

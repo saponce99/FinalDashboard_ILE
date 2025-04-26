@@ -5,25 +5,25 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-###Final Dashboard: Exploring Obesity and Physical Inactivity in Georgia Overview\*\*
+**Final Dashboard: Exploring Obesity and Physical Inactivity in Georgia Overview**
 
 This Shiny flexdashboard application provides an interactive platform to explore county-level prevalence of obesity and no leisure physical activity in Georgia. It uses data from the CDC PLACES 2024 release and offers both graphical and spatial visualizations to assist public health professionals, researchers, and policymakers in identifying high-need areas.
 
-### About the Data
+**About the Data**
 
 **Data Source:** [CDC PLACES Data Portal](https://data.cdc.gov/500-Cities-Places/PLACES-Local-Data-for-Better-Health-County-Data-20/swc5-untb/about_data)\
 **Data Collection Method:** Estimates derived from the 2022 Behavioral Risk Factor Surveillance System (BRFSS), U.S. Census 2020 data, and 2018–2022 ACS using small area estimation techniques\
 **Study Population:** U.S. adults across the 500 largest cities/counties\
 **Time Period:** Data reflect responses from BRFSS 2021 and 2022, released in 2024
 
-###Real World Impact
+**Real World Impact**
 
 This dashboard provides an accessible way to explore disparities in obesity and physical inactivity across U.S. counties, helping public health professionals identify high-need areas. The visualization of geographic patterns supports data-driven decision-making for targeted physical activity and obesity-focused interventions.
 
-###Dashboard Features
+**Dashboard Features**
 
 -   Interactive map showcasing prevalence of obesity and no leisure physical activity
 
 -   Scatter plot showing average rate of obesity and no leisure physical activity by county
 
-\###[Link to Dashboard Final Dashboard: Exploring Obesity and Physical Inactivity in Georgia Overview](https://stephanie-a-ponce.shinyapps.io/250401_Final_Dashboard_PONCE/)
+[**Link to Dashboard Final Dashboard: Exploring Obesity and Physical Inactivity in Georgia Overview**](https://stephanie-a-ponce.shinyapps.io/250401_Final_Dashboard_PONCE/)

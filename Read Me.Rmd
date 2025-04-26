@@ -16,6 +16,10 @@ This Shiny flexdashboard application provides an interactive platform to explore
 **Study Population:** U.S. adults across the 500 largest cities/counties\
 **Time Period:** Data reflect responses from BRFSS 2021 and 2022, released in 2024
 
+###Real World Impact
+
+This dashboard provides an accessible way to explore disparities in obesity and physical inactivity across U.S. counties, helping public health professionals identify high-need areas. The visualization of geographic patterns supports data-driven decision-making for targeted physical activity and obesity-focused interventions.
+
 ###Dashboard Features
 
 -   Interactive map showcasing prevalence of obesity and no leisure physical activity
